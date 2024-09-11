@@ -1,19 +1,19 @@
 # LLMscripting
 This is a series of Python scripts for zero-shot and chain-of-though LLM scripting.
 
--Windows Installation
+Windows Installation
 
 1. Click 'Releases' on the right and download LLMscripting-WinInstaller.exe
 2. Follow the installation instructions on the releases page.
 
--Mac Installation 
+Mac Installation 
 
 1. Click 'Releases' on the right and download LLMscripting-MacInstaller.zip
 2. Follow the installation instructions on the releases page.
 
--Usage Instructions
+Usage Instructions
 
-For zero-shot scripting (a series of single LLM prompts)
+-For zero-shot scripting (a series of single LLM prompts)
 
 1. Place a TSV file containing two columns in the input-files folder, with a filename like yourtexthere-prompts.tsv
 2. The first column should have an identifier (like a student number), and the second column should have the prompts (like 'Please check text after the colon for grammar errors: STUDENT TEXT')
