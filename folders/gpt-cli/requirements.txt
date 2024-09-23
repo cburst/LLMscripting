@@ -1,85 +1,82 @@
 # Merged requirements from original requirements.txt and secondary_requirements.txt
 
 # Secondary requirements (overrides or new additions)
-annotated-types==0.7.0
-anthropic==0.25.9
-boto3==1.28.0
-cohere==5.9.1
-distro==1.8.0
-fastavro==1.9.4
-google-ai-generativelanguage==0.6.4
-google-api-core==2.15.0
-google-api-python-client==2.134.0
-google-auth==2.26.2
-google-auth-httplib2==0.2.0
-google-generativeai==0.5.4
-grpcio==1.60.0
-httpcore==0.17.0
-httpx==0.24.0
-httpx-sse==0.4.0
-idna==3.4
-jiter==0.5.0
-parameterized==0.9.0
-pydantic==2.0.3
-pydantic_core==2.3.0
-pyasn1==0.5.0
-pyasn1-modules==0.3.0
-rsa==4.9
-sniffio==1.3.0
-tqdm==4.66.2
-types-requests==2.31.0.6
-typing_extensions==4.12.2
-uritemplate==4.1.1
-urllib3==2.2.2
-attrs==23.2.0
-botocore==1.34.133
-jmespath==1.0.1
-python-dateutil==2.8.2
-six==1.16.0
+annotated-types>=0.7.0
+anthropic>=0.25.9,<0.26.0
+boto3>=1.28.0,<1.29.0
+cohere>=5.5.3,<6.0.0  # Updated for flexibility
+distro>=1.8.0,<1.9.0
+fastavro>=1.9.4,<2.0.0
+google-ai-generativelanguage>=0.6.4,<0.7.0
+google-api-core>=2.15.0,<2.16.0
+google-api-python-client>=2.134.0,<2.135.0
+google-auth>=2.26.2,<2.27.0
+google-auth-httplib2>=0.2.0,<0.3.0
+google-generativeai>=0.5.4,<0.6.0  # Expanded for flexibility
+grpcio>=1.60.0,<1.61.0
+httpcore>=0.17.0,<0.18.0
+httpx>=0.24.0,<0.25.0
+httpx-sse>=0.4.0,<0.5.0
+idna>=3.4,<3.5
+jiter>=0.5.0,<0.6.0
+parameterized>=0.9.0,<1.0.0
+pydantic>=2.0.3,<2.1.0
+pydantic_core>=2.3.0,<2.4.0
+pyasn1>=0.5.0,<0.6.0
+pyasn1-modules>=0.3.0,<0.4.0
+rsa>=4.9,<5.0
+sniffio>=1.3.0,<1.4.0
+tqdm>=4.66.2,<4.67.0
+types-requests>=2.31.0.6
+typing_extensions>=4.12.2,<4.13.0
+uritemplate>=4.1.1,<4.2.0
+urllib3>=2.2.2,<2.3.0
+attrs>=23.2.0,<23.3.0
+botocore>=1.34.133,<1.35.0
+jmespath>=1.0.1,<1.1.0
+python-dateutil>=2.8.2,<2.9.0
+six>=1.16.0,<1.17.0
 
 # Original requirements.txt (merged with secondary)
-aiohttp==3.9.3
-aiosignal==1.3.1
-anyio==3.6.2
-async-timeout==4.0.2
-black==24.4.2
-blessings==1.7
-certifi==2022.12.7
-charset-normalizer==3.1.0
-click==8.1.7
-colorama==0.4.6
-frozenlist==1.3.3
-h11==0.14.0
-markdown-it-py==2.2.0
-mdurl==0.1.2
-multidict==6.0.4
-mypy-extensions==1.0.0
+aiohttp>=3.9.3,<3.10.0
+aiosignal>=1.3.1,<1.4.0
+anyio>=3.6.2,<3.7.0
+async-timeout>=4.0.2,<4.1.0
+black>=24.4.2,<25.0.0
+blessings>=1.7,<1.8
+certifi>=2022.12.7,<2023.0.0
+charset-normalizer>=3.1.0,<3.2.0
+click>=8.1.7,<8.2.0
+colorama>=0.4.6,<0.5.0
+frozenlist>=1.3.3,<1.4.0
+h11>=0.14.0,<0.15.0
+markdown-it-py>=2.2.0,<2.3.0
+mdurl>=0.1.2,<0.2.0
+multidict>=6.0.4,<6.1.0
+mypy-extensions>=1.0.0,<1.1.0
 
-# Keep openai at this version since it's explicitly required
-openai==1.30.1
+# Expanded openai version to allow flexibility
+openai>=1.30.1,<1.31.0
 
-packaging==23.0
-pathspec==0.11.0
-platformdirs==3.1.1
-prompt-toolkit==3.0.43
-Pygments==2.14.0
-PyYAML==6.0.1
-regex==2023.3.23
-requests==2.32.3
-rich==13.7.1
-tiktoken==0.3.3
+packaging>=23.0,<24.0
+pathspec>=0.11.0,<0.12.0
+platformdirs>=3.1.1,<3.2.0
+prompt-toolkit>=3.0.43,<3.1.0
+Pygments>=2.14.0,<2.15.0
+PyYAML>=6.0.1,<6.1.0
+regex>=2023.3.23,<2024.0.0
+requests>=2.32.3,<2.33.0
+rich>=13.7.1,<13.8.0
+tiktoken>=0.3.3,<0.4.0
 
 # Allow tokenizers version that satisfies both anthropic and cohere
 tokenizers>=0.15,<0.20
 
-tomli==2.0.1
-wcwidth==0.2.6
-yarl==1.8.2
+tomli>=2.0.1,<2.1.0
+wcwidth>=0.2.6,<0.3.0
+yarl>=1.8.2,<1.9.0
 
-# Keep Google Generative AI
-google-generativeai==0.5.4
+# Expanded Google Generative AI
+google-generativeai>=0.5.4,<0.6.0
 
-# Allow flexibility with cohere to resolve conflict with tokenizers
-cohere>=5.5.3,<6.0.0
-
-gpt-cli==0.0.15
+gpt-cli>=0.0.15,<0.1.0
