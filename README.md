@@ -28,4 +28,4 @@ Usage Instructions
 
 Citation:
 
-Rose, R. (2024). Improving grammatical accuracy through instructor, peer, and LLM-assisted corrective feedback. Manuscript in preparation.
+Rose, R. (2024). Improving grammatical accuracy through instructor, peer, and LLM written corrective feedback. Manuscript in preparation.
