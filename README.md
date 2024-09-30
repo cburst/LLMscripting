@@ -1,14 +1,9 @@
 # LLMscripting
 This is a series of Python scripts for zero-shot and chain-of-thought LLM scripting.
 
-Windows Installation
+Windows/Mac Installation
 
 1. Click 'Releases' on the right and download LLMscripting-WinInstaller.exe
-2. Follow the installation instructions on the releases page.
-
-Mac Installation 
-
-1. Click 'Releases' on the right and download LLMscripting-MacInstaller.zip
 2. Follow the installation instructions on the releases page.
 
 Usage Instructions
@@ -18,8 +13,8 @@ Usage Instructions
 1. Place a TSV file containing two columns in the input-files folder, with a filename like yourtexthere-prompts.tsv
 2. The first column should have an identifier (like a student number), and the second column should have the prompts (like 'Please check text after the colon for grammar errors: STUDENT TEXT')
 3. Click the desktop shortcut for LLM Scripting
-4a. Type the following command on Windows: python GPT.py yourtexthere-
-4b. Type the following command on Mac: python3 GPT.py yourtexthere-
+4. Type the following command on Windows: python GPT.py yourtexthere-
+4. Type the following command on Mac: python3 GPT.py yourtexthere-
 
 -For chain-of-thought scripting (a series of multiple related LLM prompts)
 
@@ -27,8 +22,8 @@ Usage Instructions
 2. The first column should have an identifier (like a student number), and the second column should have the text (like 'STUDENT TEXT')
 3. To adjust the prompts, edit the prompt text in folders/fiver.py
 4. Click the desktop shortcut for LLM Scripting
-5a. Type the following command on Windows: python GPTmulti.py yourtexthere-
-5b. Type the following command on Mac: python3 GPTmulti.py yourtexthere-
+5. Type the following command on Windows: python GPTmulti.py yourtexthere-
+5. Type the following command on Mac: python3 GPTmulti.py yourtexthere-
 
 
 Citation:
