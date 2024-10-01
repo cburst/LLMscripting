@@ -303,7 +303,13 @@ def print_results(file_path, total_lines, removed_lines, at_violations, excl_vio
     print(f"Cleaning completed for: {os.path.abspath(file_path)}")
     print(f"Total lines processed: {total_lines}")
     print(f"Total lines removed: {removed_lines}")
-    print(f"Percent of lines removed: {removed_lines / total_lines * 100:.2f}%")
+    
+    # Only calculate percentage if total_lines > 0 to avoid division by zero
+    if total_lines > 0:
+        print(f"Percent of lines removed: {removed_lines / total_lines * 100:.2f}%")
+    else:
+        print("No lines to process.")
+    
     print(f"@ condition violations: {at_violations}")
     print(f"! condition violations: {excl_violations}")
     print(f"£ condition violations: {britishpound_violations}")

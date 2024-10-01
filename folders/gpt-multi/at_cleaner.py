@@ -36,7 +36,13 @@ def check_for_at_in_csv(file_path):
     
     print(f"Total lines processed: {total_lines}")
     print(f"Total lines removed: {removed_lines}")
-    print(f"Percent of lines removed: {removed_lines / total_lines * 100:.2f}%")
+    
+    # Only calculate percentage if total_lines > 0 to avoid division by zero
+    if total_lines > 0:
+        print(f"Percent of lines removed: {removed_lines / total_lines * 100:.2f}%")
+    else:
+        print("No lines to process.")
+    
     print(f"@ condition violations: {at_violations}")
 
 if __name__ == "__main__":
