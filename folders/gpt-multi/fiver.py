@@ -142,7 +142,7 @@ def process_files(working_directory, csv_file):
             second_output = send_prompt_and_capture_output(gpt_process, second_prompt, 2)
 
             # Third prompt
-            third_prompt = "Are you sure there are no other errors? Please carefully double check. Start your answer with all updated error numbers in their delimiters (even if the number of errors for a certain error type is 0), each separated by a space on the first line."
+            third_prompt = "Are you sure there are no other errors? Please carefully double check. Start your answer with all updated error numbers in their delimiters (even if the number of errors for a certain error type is 0), each separated by a space on the first line. Then, proceed to describe all the errors detected, before and after double checking. Finally, provide a revised paragraph."
 
             third_output = send_prompt_and_capture_output(gpt_process, third_prompt, 3)
 
