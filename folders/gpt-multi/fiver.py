@@ -1,239 +1,295 @@
-import os
-import shutil
+import subprocess
 import time
 import csv
+import glob
 import sys
-from datetime import datetime
-from colorama import init, Fore, Style
-import subprocess
+import os
 import re
+import shutil
 
-# Initialize colorama
-init(autoreset=True)
-
-# Function to remove control characters (ANSI escape sequences)
-def remove_control_characters(text):
-    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
-    return ansi_escape.sub('', text)
-
-# Function to clean the output by removing everything BEFORE and including lastline, and AFTER "Tokens:"
-def process_output_file(raw_content):
-    lines = raw_content.splitlines()
-
-    # Initialize variables to track the secondlastline and lastline
-    secondlastline_index = -1
-
-    # Iterate backwards through the lines to find the last line with exactly one English letter and many spaces
-    for i in range(len(lines) - 1, -1, -1):
-        line = lines[i].strip()
-        # Check if the line contains exactly one English letter and many spaces
-        if len(line) == 1 and line.isalpha():
-            secondlastline_index = i
-            break
-
-    # If we found such a line and it's not the last line, we proceed
-    if secondlastline_index != -1 and secondlastline_index < len(lines) - 1:
-        lastline_index = secondlastline_index + 1
-
-        # Remove all content before and including lastline
-        cleaned_content = '\n'.join(lines[lastline_index + 1:])
-
-        # Remove all content after and including "Tokens:"
-        tokens_index = cleaned_content.find("Tokens:")
-        if tokens_index != -1:
-            cleaned_content = cleaned_content[:tokens_index].strip()
-
-        # Clean ANSI escape sequences and other control characters
-        cleaned_content = remove_control_characters(cleaned_content)
-
-        return cleaned_content
+def get_ordinal_suffix(n):
+    """
+    Return the ordinal suffix for an integer n: '1st', '2nd', '3rd', etc.
+    """
+    # Special cases
+    if 11 <= (n % 100) <= 13:
+        return f"{n}th"
+    # General cases
+    last_digit = n % 10
+    if last_digit == 1:
+        return f"{n}st"
+    elif last_digit == 2:
+        return f"{n}nd"
+    elif last_digit == 3:
+        return f"{n}rd"
     else:
-        # If no valid lines found, just remove ANSI sequences
-        return remove_control_characters(raw_content)
+        return f"{n}th"
 
-def main():
-    if len(sys.argv) != 2:
-        print(Fore.RED + "Usage: python script.py directory_path")
-        sys.exit(1)
+# Set the script's directory as the working directory.
+script_directory = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_directory)
 
-    file_directory = sys.argv[1]
-    csv_file = f"{file_directory}.csv"
-    working_directory = os.path.join(file_directory, "workingdirectory")
+# Ensure a directory is provided as an argument.
+if len(sys.argv) < 2:
+    print("Usage: python script.py <directory>")
+    sys.exit(1)
 
-    os.makedirs(working_directory, exist_ok=True)
+input_directory = sys.argv[1].rstrip("/")  # Remove trailing slash if present
+if not os.path.isdir(input_directory):
+    print("The provided argument is not a valid directory.")
+    sys.exit(1)
 
-    if not os.path.exists(csv_file):
-        with open(csv_file, 'w', newline='', encoding='utf-8') as file:
-            pass
+# New delimiter instruction.
+new_delimiter_instruction = "start your response with <<start>> and end your response with <<end>>."
 
-    while True:
-        all_files_met_condition = True
-        total_missing_references = 0
+# Path to the GPT log file.
+log_file_path = "gptcli.log"
 
-        for file in os.listdir(file_directory):
-            file_path = os.path.join(file_directory, file)
-            if os.path.isfile(file_path) and get_file_size(file_path) > 10:
-                filename = os.path.basename(file_path)
-                count = count_occurrences(filename, csv_file)
+# Get base prompts from prompt*.txt in the current directory.
+prompt_files = sorted(glob.glob("prompt*.txt"))
+if not prompt_files:
+    print("No prompt files found in the current directory.")
+    sys.exit(1)
 
-                print(Fore.BLUE + f"File: {filename}, Count: {count}")
+base_prompts = []
+for prompt_file in prompt_files:
+    with open(prompt_file, "r", encoding="utf-8") as f:
+        base_prompts.append(f.read().strip())
 
-                if count < 5:
-                    all_files_met_condition = False
-                    total_missing_references += (5 - count)
-                    if not os.path.exists(os.path.join(working_directory, filename)):
-                        shutil.copy(file_path, working_directory)
-                else:
-                    if os.path.exists(os.path.join(working_directory, filename)):
-                        os.remove(os.path.join(working_directory, filename))
+num_prompts = len(base_prompts)
+print(f"Number of base prompts found: {num_prompts}")
 
-        print(Fore.GREEN + f"Total number of remaining missing references: {total_missing_references}")
+# Get text files from the provided directory.
+text_files = sorted(glob.glob(os.path.join(input_directory, "*.txt")))
+num_text_files = len(text_files)
+print(f"Number of text files found in {input_directory}: {num_text_files}")
 
-        if not all_files_met_condition:
-            process_files(working_directory, csv_file)
+def count_token_usage(log_file):
+    """Count occurrences of 'Token usage' in the log file."""
+    if os.path.exists(log_file):
+        with open(log_file, "r", encoding="utf-8") as f:
+            return len(re.findall(r"Token usage", f.read()))
+    return 0
 
-        if all_files_met_condition:
-            print(Fore.BLUE + "All files have appeared 5 times in the CSV.")
-            break
+def wait_for_responses(expected_count, timeout=120):
+    """
+    Wait until the number of 'Token usage' strings in the log file
+    matches the expected count. Retries until the timeout is reached.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        time.sleep(2)  # Check every 2 seconds
+        current_count = count_token_usage(log_file_path)
+        if current_count >= expected_count:
+            return True  # Success, we got all responses
+    return False  # Timeout reached
 
-        time.sleep(5)
+def extract_responses_and_save(filename, iteration_successful_csvs):
+    """
+    Extract responses from gptcli.log and save them to filename.csv 
+    with preserved line breaks. 
+    """
+    if not os.path.exists(log_file_path):
+        print(f"Error: Log file for {filename} not found.")
+        return False
 
-def count_occurrences(filename, csv_file):
-    count = 0
-    with open(csv_file, mode='r', newline='', encoding='utf-8') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            if filename in row:
-                count += 1
-    return count
+    with open(log_file_path, "r", encoding="utf-8") as log_file:
+        log_data = log_file.read()
 
-def get_file_size(file):
-    return os.stat(file).st_size
+        # Extract responses using assistant messages
+        matches = re.findall(
+            r"gptcli-session - INFO - assistant:.*?<<start>>(.*?)<<end>>",
+            log_data, 
+            re.DOTALL
+        )
 
-def process_files(working_directory, csv_file):
-    print(Fore.CYAN + f"Starting to process files in {working_directory}")
+        # Ensure correct response count
+        if len(matches) < num_prompts:
+            print(f"Error: Missing responses for {filename}. Expected {num_prompts}, but got {len(matches)}.")
+            return False
 
-    for i in os.listdir(working_directory):
-        i_path = os.path.join(working_directory, i)
-        if os.path.isfile(i_path) and get_file_size(i_path) > 25:
-            print(Fore.CYAN + f"Processing file: {i}")
+        # Preserve line breaks inside responses
+        responses = [resp.strip() for resp in matches]
 
-            try:
-                with open(i_path, 'r', encoding="utf-8", errors="ignore") as file:
-                    content = file.read().replace('\x00', '')
-                print(Fore.BLUE + f"Read content from {i}")
-                timestamp_input = datetime.now().strftime('%m-%d %H:%M:%S')
-                print(Fore.BLUE + f"[{timestamp_input}] (input size: {len(content)} characters)")
-            except UnicodeDecodeError:
-                print(Fore.RED + f"Error decoding file: {i_path}")
-                continue
+    csv_file = os.path.join(input_directory, f"{filename}.csv")
+    header = ["filename"] + [f"prompt{str(i+1).zfill(2)}" for i in range(num_prompts)]
 
-            # Start gpt.py as a subprocess only once
-            gpt_process = start_gpt_session()
+    with open(csv_file, mode="w", newline="", encoding="utf-8") as f_csv:
+        writer = csv.writer(f_csv, quoting=csv.QUOTE_ALL)  # quote all fields
+        writer.writerow(header)  # Write header
+        writer.writerow([filename] + responses)
 
-            # First prompt
-            first_prompt = f"Can you check the following paragraph, located after the colon, for grammar errors, count the number of errors, place the number of grammar errors between @ symbols even if the number is zero (e.g, @0@, @1@, @2@, @3@, etc), explain each of the mistakes, and provide a revised paragraph. Start your answer with a line containing only the number of mistakes between two @ symbols. Here is the paragraph: {content}"
+    print(f"CSV file saved: {csv_file}")
+    iteration_successful_csvs.append(csv_file)
+    return True
 
-            first_output = send_prompt_and_capture_output(gpt_process, first_prompt, 1)
+def process_text_file(input_file, base_prompts, new_delimiter_instruction, iteration_successful_csvs):
+    """
+    Runs a GPT session for a single text file and handles up to 10 retries 
+    if there's a timeout waiting for responses. 
+    Returns True if processing eventually succeeds, otherwise False.
+    """
+    filename = os.path.splitext(os.path.basename(input_file))[0]
+    failure_counter = 0
 
-            # Second prompt
-            second_prompt = "Next, please categorize those errors according to the following types of errors, even if the number of errors for a certain type is zero: Preposition errors (for these errors the delimiter is '!', for example !0!, !1!, etc), Morphology errors (for these errors the delimiter is '#', for example #0#, #1#, etc), Determiner errors (for these errors the delimiter is '€', for example €0€, €1€, etc), Tense/Aspect errors (for these errors the delimiter is '%', for example %0%, %1%, etc), Agreement errors (for these errors the delimiter is '^', for example ^0^, ^1^, etc), Syntax errors (for these errors the delimiter is '&', for example &0&, &1&, etc), Punctuation errors (for these errors the delimiter is '£', for example £0£, £1£, etc), Spelling errors (for these errors the delimiter is '~', for example ~0~, ~1~, etc), Unidiomatic errors (for these errors the delimiter is '+', for example +0+, +1+, etc), Multiple errors (for these errors the delimiter is '=', for example =0=, =1=, etc), and Miscellaneous errors (for these errors the delimiter is '₩', for example ₩0₩, ₩1₩, etc). Make sure that the sum total number matches the sum of the individual error types, using @ as the delimiter, as discussed earlier. Start your answer with all error numbers in their delimiters (even if the number of errors for a certain error type is 0), each separated by a space on the first line."
+    while failure_counter < 10:
+        # Move old log file instead of deleting it
+        if os.path.exists(log_file_path):
+            error_logfile = os.path.join(
+                input_directory, f"gptcli_{filename}_error{failure_counter + 1}.log"
+            )
+            shutil.move(log_file_path, error_logfile)
+            print(f"Saved failed attempt log: {error_logfile}")
 
-            second_output = send_prompt_and_capture_output(gpt_process, second_prompt, 2)
+        with open(input_file, "r", encoding="utf-8") as f_in:
+            file_text = f_in.read().strip()
 
-            # Third prompt
-            third_prompt = "Are you sure there are no other errors? Please carefully double check. Start your answer with all updated error numbers in their delimiters (even if the number of errors for a certain error type is 0), each separated by a space on the first line. Then, proceed to describe all the errors detected, before and after double checking. Finally, provide a revised paragraph."
+        # Start a new GPT process for this file
+        process = subprocess.Popen(
+            ["gpt", "--model", "gpt-4o", "GrammarHelper"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
 
-            third_output = send_prompt_and_capture_output(gpt_process, third_prompt, 3)
+        # Read the initial prompt from GPT
+        process.stdout.readline()
 
-            # End gpt.py session
-            end_gpt_session(gpt_process)
+        # Send each base_prompt
+        for i, base_prompt in enumerate(base_prompts):
+            if i == 0:
+                full_prompt = f"{new_delimiter_instruction} {base_prompt} {file_text}"
+            else:
+                full_prompt = f"{new_delimiter_instruction} {base_prompt}"
 
-            # Save raw outputs to files before processing
-            save_to_text_file('prompt01output.txt', first_output)
-            save_to_text_file('prompt02output.txt', second_output)
-            save_to_text_file('prompt03output.txt', third_output)
+            # Remove any quotation marks from the prompt.
+            full_prompt = full_prompt.replace('"', '')
 
-            # Process the output using the secondlastline and lastline approach
-            first_output_processed = process_output_file(first_output)
-            second_output_processed = process_output_file(second_output)
-            third_output_processed = process_output_file(third_output)
+            # Send the prompt.
+            process.stdin.write(full_prompt + "\n")
+            process.stdin.flush()
 
-            # Save the processed outputs to text files
-            save_to_text_file('prompt01output-processed.txt', first_output_processed)
-            save_to_text_file('prompt02output-processed.txt', second_output_processed)
-            save_to_text_file('prompt03output-processed.txt', third_output_processed)
+            # Wait for the response before sending the next prompt
+            success = wait_for_responses(i + 1)
+            if not success:
+                print(f"Error: Timeout waiting for response {i + 1} for {filename}. Retrying...")
+                failure_counter += 1
+                process.kill()
+                break  # Restart the GPT process
+        else:
+            # If we didn't break out early, we got all prompts
+            process.stdin.write(":q\n")
+            process.stdin.flush()
+            process.communicate()
 
-            # Writing results to CSV (only responses, not prompts)
-            with open(csv_file, mode='a', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow([os.path.basename(i), first_output_processed, second_output_processed, third_output_processed])
-                print(Fore.BLUE + f"Logged output to CSV for {i}")
+            # Extract responses and save CSV
+            if extract_responses_and_save(filename, iteration_successful_csvs):
+                # Rename log file to preserve it
+                new_logfile = os.path.join(input_directory, f"gptcli_{filename}.txt")
+                shutil.move(log_file_path, new_logfile)
+                print(f"Renamed log file: {new_logfile}")
+                return True  # success
+            else:
+                print(f"Error processing {filename}, retrying...")
+                failure_counter += 1
 
-    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using OPENAI LLM")
+    print(f"Error: Reached max retries (10) for {filename}.")
+    return False
 
-def start_gpt_session():
-    # Get the full path to gpt.py (in the same directory as fiver.py)
-    current_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory where fiver.py is located
-    gpt_py_path = os.path.join(current_dir, "gpt.py")  # Full path to gpt.py
+def move_non_txt_files_into_subfolder(input_directory, subfolder_name, original_txt_files):
+    """
+    Move every file in `input_directory` except the original TXT files
+    into a subdirectory named `subfolder_name`.
+    """
+    subfolder_path = os.path.join(input_directory, subfolder_name)
+    os.makedirs(subfolder_path, exist_ok=True)
 
-    # Ensure gpt.py exists
-    if not os.path.exists(gpt_py_path):
-        raise FileNotFoundError(f"gpt.py not found at {gpt_py_path}")
+    for item in os.listdir(input_directory):
+        item_full_path = os.path.join(input_directory, item)
+        # Skip directories if you don't want to move entire subfolders.
+        if os.path.isdir(item_full_path) and item != subfolder_name:
+            # If you want to move subdirectories too, uncomment:
+            # shutil.move(item_full_path, subfolder_path)
+            continue
+        # Skip the original TXT files
+        if item_full_path in original_txt_files:
+            continue
+        # Move everything else
+        if os.path.isfile(item_full_path):
+            shutil.move(item_full_path, subfolder_path)
 
-    # Command to run gpt.py with the correct model and arguments
-    command = [sys.executable, gpt_py_path, "--model", "gpt-4o", "GrammarHelper"]
+# -------------------------------
+# Main 5-iteration loop
+# -------------------------------
+# Store the full paths to the original .txt files so we don't move them:
+original_txt_files = [
+    os.path.join(input_directory, os.path.basename(tf)) 
+    for tf in text_files
+]
 
-    # Start the gpt.py process, capturing only the output (stdout)
-    gpt_process = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,  # Allow input
-        stdout=subprocess.PIPE,  # Capture output
-        stderr=subprocess.PIPE,  # Capture errors
-        text=True  # Ensure text mode
-    )
-    return gpt_process
+# We will keep appending to this combined CSV file each iteration.
+combined_csv_path = os.path.join(
+    script_directory, f"{os.path.basename(input_directory)}.csv"
+)
 
-def send_prompt_and_capture_output(gpt_process, prompt, prompt_number):
-    # Send the prompt to the already running gpt.py process
-    gpt_process.stdin.write(prompt + "\n")
-    gpt_process.stdin.flush()
+for iteration in range(1, 6):
+    iteration_suffix = get_ordinal_suffix(iteration)  # e.g. "1st", "2nd", etc.
+    print("=" * 60)
+    print(f"Starting {iteration_suffix} iteration...")  # <--- changed statement
+    print("=" * 60)
 
-    response = ''
-    total_characters = 0  # Track total number of characters received
-    prompt_label = f"Prompt {prompt_number:02d} characters received: "
+    # Track CSV files created this iteration
+    iteration_successful_csvs = []
+    iteration_success = True
 
-    try:
-        # Continuously read the output from the process
-        while True:
-            output = gpt_process.stdout.readline()
-            if output:
-                response += output
-                total_characters += len(output)  # Count received characters
+    # Process each text file
+    for input_file in text_files:
+        print(f"Processing: {input_file}")
+        result = process_text_file(
+            input_file,
+            base_prompts,
+            new_delimiter_instruction,
+            iteration_successful_csvs
+        )
+        if not result:
+            # If we fail for even one file, treat the entire iteration as failure
+            iteration_success = False
+            # If you want to stop processing further files, uncomment below:
+            # break
 
-                # Print the total number of characters received in real-time
-                sys.stdout.write(f"\r{Fore.YELLOW}{prompt_label}{total_characters}")
-                sys.stdout.flush()
+    # If this iteration generated any CSV files, append them to the 
+    # combined CSV (only write a header if the combined CSV doesn't exist yet).
+    if iteration_successful_csvs:
+        # Check if the combined CSV already exists
+        file_already_exists = os.path.exists(combined_csv_path)
 
-            # Break when "Tokens:", "Price:", or "Total:" is detected in the output
-            if "Tokens:" in output or "Price:" in output or "Total:" in output:
-                break
+        mode = "a" if file_already_exists else "w"
+        with open(combined_csv_path, mode=mode, newline="", encoding="utf-8") as combined_csv:
+            writer = csv.writer(combined_csv)
+            for i, csv_file in enumerate(iteration_successful_csvs):
+                with open(csv_file, mode="r", encoding="utf-8") as f_csv:
+                    reader = csv.reader(f_csv)
+                    rows = list(reader)
 
-        print()  # Print a new line after finishing reading the prompt
+                    # If the combined CSV didn't exist previously and this is 
+                    # the first iteration CSV, we include the header.
+                    if (not file_already_exists) and i == 0:
+                        writer.writerows(rows)  # includes header
+                    else:
+                        # If we're appending, skip the header row for each CSV.
+                        writer.writerows(rows[1:])  
 
-    except Exception as e:
-        print(f"Error occurred: {e}")
+        print(f"[Iteration {iteration_suffix}] Appended to combined CSV: {combined_csv_path}")
 
-    return response
+    # Decide the subfolder name
+    if iteration_success:
+        subfolder_name = f"{iteration_suffix}-iteration"
+    else:
+        subfolder_name = f"{iteration_suffix}-iteration_error"
 
-def end_gpt_session(gpt_process):
-    gpt_process.stdin.write("exit\n")
-    gpt_process.stdin.flush()
-    gpt_process.terminate()
+    print(f"Moving non-txt files to subfolder: {subfolder_name}")
+    move_non_txt_files_into_subfolder(input_directory, subfolder_name, original_txt_files)
 
-def save_to_text_file(filename, content):
-    with open(filename, 'w', encoding='utf-8') as file:
-        file.write(content)
-
-if __name__ == "__main__":
-    main()
+print("All 5 iterations complete.")

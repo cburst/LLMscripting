@@ -1,0 +1,1 @@
+How certain are you regarding these error counts, on a scale of 1 (total lack of confidence) to 99 (extremely high confidence)? Reply in this format: <certainty:##>

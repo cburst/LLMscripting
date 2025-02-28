@@ -1,0 +1,53 @@
+"filename","prompt01","prompt02","prompt03","prompt04","prompt05","prompt06"
+"2024324118","Here is the revised text with corrections for grammar errors:
+
+Today, I'm going to talk about uncertainty in large language models. First, I will address the causes of uncertainty in LLMs, then I'll present the research purpose with motivations. Next, I'll provide some notable literature, followed by a concept map. Later, I'll discuss research methods, measurement, and results, closing with a discussion of strengths and limitations. Large language models should respond in a safer and more trustworthy manner to users' inquiries. Recently, large language models, including GPT-4 and Claude-3.5, have demonstrated more powerful capabilities to answer users' questions in a wide variety of cases. Despite their astonishing performance, several critical problems have been reported, which imply that LLMs are not fully reliable yet. One common type of failure is that LLMs generate different answers for identical questions. This difference results from the nature of deep learning-based AI models, including LLMs, such that outputs from models are computed via stochastic processes. In detail, every token, which is the unit of language that LLMs process, is sampled with a probability conditioned on the input and the previous tokens. Starting with the first token of the input, an LLM generates a token, then the second input is the concatenation of the first token and the generated token, and the process is done iteratively until the end of the sentence is generated. Each token is sampled with some probability, and there is a case where the sentence could diverge and end up generating a semantically different sentence since each token probability is conditioned by previously generated tokens. This non-determinism leads to the concept of uncertainty, which concerns the extent to which models are unsure of their answers. The ideal uncertainty quantification would precisely predict the accuracy of generated responses compared to the actual ground truth. The recently increased demand for assessing LLMs' uncertainty is directly related to the reliability and truthfulness of AI models. More to the point, special-purpose LLMs, such as legal or medical LLMs, must be perceived as trustworthy by users but may generate erroneous responses. Until recently, researchers have sought to quantify uncertainty precisely, yet the quantification performance is unsatisfactory, or the application scope is limited to multiple-choice questions. These limitations have driven the need to develop novel, more effective methods for accurately quantifying uncertainty, particularly in complex, open-ended tasks.","<total_errors:19>  
+<preposition_errors:1>  
+<morphology_errors:1>  
+<determiner_errors:2>  
+<tense-aspect_errors:0>  
+<agreement_errors:1>  
+<syntax_errors:0>  
+<punctuation_errors:7>  
+<spelling_errors:1>  
+<unidiomatic_errors:0>  
+<multiple_errors:6>  
+<miscellaneous_errors:0>","<certainty:90>","<total_errors:18>  
+<preposition_errors:0>  
+<morphology_errors:1>  
+<determiner_errors:2>  
+<tense-aspect_errors:0>  
+<agreement_errors:1>  
+<syntax_errors:0>  
+<punctuation_errors:7>  
+<spelling_errors:1>  
+<unidiomatic_errors:0>  
+<multiple_errors:6>  
+<miscellaneous_errors:0>","1. **Punctuation Errors (7):**  
+   - ""Im"" should be ""I'm"" (missing apostrophe).  
+   - ""Ill"" should be ""I'll"" (missing apostrophe) in multiple instances.  
+   - ""users inquiries"" should be ""users' inquiries"" (missing possessive apostrophe).  
+   - ""Recently, Large language models"" should be ""Recently, large language models"" (capitalization error).  
+   - ""concaten ation"" should be ""concatenation"" (space error).  
+   - ""end of sentence"" should be ""end of the sentence"" (missing article).  
+
+2. **Morphology Errors (1):**  
+   - ""reponses"" should be ""responses"" (incorrect spelling of the word).  
+
+3. **Determiner Errors (2):**  
+   - ""causes of an uncertainty"" should be ""causes of uncertainty"" (unnecessary determiner).  
+   - ""Starting with a first token"" should be ""Starting with the first token"" (incorrect determiner).  
+
+4. **Agreement Errors (1):**  
+   - ""capability to answer"" should be ""capabilities to answer"" (subject-verb agreement).  
+
+5. **Multiple Errors (6):**  
+   - ""Recently increased demand for assessing LLMs uncertainty"" should be ""The recently increased demand for assessing LLMs' uncertainty"" (missing article and possessive apostrophe).  
+   - ""special-purpose LLMs such as legal or medical LLMs"" should be ""special-purpose LLMs, such as legal or medical LLMs,"" (missing commas for clarity).  
+   - ""but may generate erroneous reponses"" should be ""but may generate erroneous responses"" (spelling and punctuation).  
+   - ""Until recently, researchers have sought to quantify uncertainty precisely, yet the quantification performance is unsatisfactory or the application scope is limited to multiple-choice questions."" (This sentence is complex and could be split for clarity, but it is grammatically correct as is).  
+   - ""This difference results from the nature of deep learning-based AI models, including LLMs, such that outputs from models are computed via stochastic processes."" (The phrase ""such that"" is slightly awkward but not incorrect; it could be rephrased for clarity).  
+   - ""This non-determinism leads to the concept of uncertainty, which concerns the extent to which models are unsure of their answers."" (The sentence is correct but could be simplified for clarity).  
+
+6. **Spelling Errors (1):**  
+   - ""reponses"" should be ""responses"" (incorrect spelling of the word).","Today, I'm going to talk about uncertainty in large language models. First, I will address the causes of uncertainty in LLMs, then I'll present the research purpose with motivations. Next, I'll provide some notable literature, followed by a concept map. Later, I'll discuss research methods, measurement, and results, closing with a discussion of strengths and limitations. Large language models should respond in a safer and more trustworthy manner to users' inquiries. Recently, large language models, including GPT-4 and Claude-3.5, have demonstrated more powerful capabilities to answer users' questions in a wide variety of cases. Despite their astonishing performance, several critical problems have been reported, which imply that LLMs are not fully reliable yet. One common type of failure is that LLMs generate different answers for identical questions. This difference results from the nature of deep learning-based AI models, including LLMs, such that outputs from models are computed via stochastic processes. In detail, every token, which is the unit of language that LLMs process, is sampled with a probability conditioned on the input and the previous tokens. Starting with the first token of the input, an LLM generates a token, then the second input is the concatenation of the first token and the generated token, and the process is done iteratively until the end of the sentence is generated. Each token is sampled with some probability, and there is a case where the sentence could diverge and end up generating a semantically different sentence since each token probability is conditioned by previously generated tokens. This non-determinism leads to the concept of uncertainty, which concerns the extent to which models are unsure of their answers. The ideal uncertainty quantification would precisely predict the accuracy of generated responses compared to the actual ground truth. The recently increased demand for assessing LLMs' uncertainty is directly related to the reliability and truthfulness of AI models. More to the point, special-purpose LLMs, such as legal or medical LLMs, must be perceived as trustworthy by users but may generate erroneous responses. Until recently, researchers have sought to quantify uncertainty precisely, yet the quantification performance is unsatisfactory, or the application scope is limited to multiple-choice questions. These limitations have driven the need to develop novel, more effective methods for accurately quantifying uncertainty, particularly in complex, open-ended tasks."

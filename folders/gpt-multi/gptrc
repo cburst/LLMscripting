@@ -1,9 +1,0 @@
-default_assistant: EnglishHelper
-markdown: True
-api_key: INSERT API KEY HERE
-assistants:
-  EnglishHelper:
-    model: gpt-4o
-    temperature: 0
-    messages:
-      - { role: system, content: "You are a English language educator. You are trying to help English language learners improve the syntactic complexity and grammatical accuracy of their writing." }
