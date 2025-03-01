@@ -1,97 +1,107 @@
-import sys
 import os
+import shutil
 import subprocess
-from collections import Counter
-import csv
+import sys
 
-def main():
-    # 1. Receive directory name as argument
-    if len(sys.argv) < 2:
-        print("Usage: python simplified_script.py <directory_name>")
-        sys.exit(1)
-    
-    directory_name = sys.argv[1]
+def cleanup(directory, tsv_file):
+    """Delete the specified directory and TSV file."""
+    try:
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
+        if os.path.exists(tsv_file):
+            os.remove(tsv_file)
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
 
-    # Directory of this script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the directory where the script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # 2. Check for a TSV file named [directory_name]raw.tsv in the same directory
-    tsv_file = os.path.join(script_dir, f"{directory_name}raw.tsv")
-    if not os.path.isfile(tsv_file):
-        print(f"Error: TSV file '{tsv_file}' not found.")
-        sys.exit(1)
+# Step 1: Receive directory name as argument
+if len(sys.argv) < 2:
+    print("Error: No directory name provided.")
+    sys.exit(1)
 
-    # 3. Filter out the header and lines with an empty second column
-    with open(tsv_file, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+d = sys.argv[1]
 
-    # Assume the first line is a header; skip it
-    data_lines = lines[1:]
-    filtered_lines = []
-    for line in data_lines:
-        columns = line.strip().split('\t')
-        # Check if there's at least 2 columns and the second column is not empty
-        if len(columns) > 1 and columns[1].strip():
+# Assuming the TSV file is in the same directory as the script and named appropriately
+tsv_file = os.path.join(script_dir, f"{d}prompts.tsv")
+
+# Check if the file exists
+if not os.path.isfile(tsv_file):
+    print(f"Error: TSV file '{tsv_file}' not found.")
+    sys.exit(1)
+
+# Step 3: Ensure the directory exists
+directory_path = os.path.join(script_dir, d)
+if not os.path.exists(directory_path):
+    os.makedirs(directory_path)
+
+# Copy the TSV file to the target directory
+target_tsv_file = os.path.join(directory_path, f"{d}prompts.tsv")
+shutil.copy(tsv_file, target_tsv_file)
+
+# Step 4: Filter the TSV file to remove lines with empty second columns
+filtered_lines = []
+with open(target_tsv_file, 'r', encoding='utf-8') as file:
+    for line in file:
+        columns = line.split('\t')
+        if len(columns) > 1 and columns[1].strip():  # Check if the second column is not empty
             filtered_lines.append(line)
 
-    # 4. Overwrite the old TSV file with the filtered content
-    with open(tsv_file, 'w', encoding='utf-8') as f:
-        f.writelines(filtered_lines)
+# Write the filtered lines back to the TSV file
+with open(target_tsv_file, 'w', encoding='utf-8') as file:
+    file.writelines(filtered_lines)
 
-    # 5. Create [directory_name] if it doesn’t exist
-    directory_path = os.path.join(script_dir, directory_name)
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
+# Process the filtered TSV file (managing files within the target directory)
+with open(target_tsv_file, 'r', encoding='utf-8') as file:
+    for line in file:
+        columns = line.split('\t')
+        if len(columns) > 1:
+            output_file_path = os.path.join(directory_path, f"{columns[0]}.txt")
+            with open(output_file_path, 'a', encoding='utf-8') as output_file:
+                output_file.write(columns[1])
 
-    # 6. Split the TSV file to create text files in [directory_name]
-    with open(tsv_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            columns = line.strip().split('\t')
-            if len(columns) > 1:
-                filename = columns[0].strip()
-                text_content = columns[1]
-                if filename:  # Avoid creating ".txt" if the first column is empty
-                    txt_file_path = os.path.join(directory_path, f"{filename}.txt")
-                    # Overwrite for simplicity
-                    with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
-                        txt_file.write(text_content)
+# Delete the TSV file in the target directory after processing
+os.remove(target_tsv_file)
 
-    # 7. Delete the TSV file now that splitting is done
-    if os.path.isfile(tsv_file):
-        os.remove(tsv_file)
-        print(f"Deleted TSV file: {tsv_file}")
+# Path to the "Student Number.txt" file in the output directory
+student_number_file = os.path.join(directory_path, "Student Number.txt")
 
-    # 8. Check for a file named [directory_name].csv; if it exists, remove .txt files
-    #    in [directory_name] for any first-column value that appears >= 5 times.
-    csv_path = os.path.join(script_dir, f"{directory_name}.csv")
-    if os.path.isfile(csv_path):
-        print(f"Checking '{csv_path}' for values that appear 5 or more times...")
-        counts = Counter()
-        with open(csv_path, 'r', newline='', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile)
-            next(reader, None)  # Skip CSV header
-            for row in reader:
-                if row and row[0].strip():
-                    counts[row[0].strip()] += 1
+# Delete the file called "Student Number.txt" after processing
+if os.path.exists(student_number_file):
+    os.remove(student_number_file)
+    
+# Remove files smaller than 250 bytes in the same directory
+for filename in os.listdir(directory_path):
+    file_path = os.path.join(directory_path, filename)
+    # Check if it's a file and its size is smaller than 250 bytes
+    if os.path.isfile(file_path) and os.path.getsize(file_path) < 250:
+        file_size = os.path.getsize(file_path)  # Get file size before removing
+        os.remove(file_path)
 
-        # For each key in counts, if it appears >= 5 times, delete the .txt file
-        for key, count in counts.items():
-            if count >= 5:
-                text_file = os.path.join(directory_path, f"{key}.txt")
-                if os.path.isfile(text_file):
-                    os.remove(text_file)
-                    print(f"Deleted file: {text_file}")
-    else:
-        print(f"No CSV file named '{directory_name}.csv' found. Skipping that step.")
+# Create an empty CSV file in the script directory (not the target directory)
+csv_file = os.path.join(script_dir, f"{d}.csv")
+open(csv_file, 'a').close()
 
-    # 9. Run fiver.py with [directory_name] as an argument
-    fiver_script = os.path.join(script_dir, "fiver.py")
-    if os.path.isfile(fiver_script):
-        subprocess.run([sys.executable, fiver_script, directory_path], check=True)
-    else:
-        print(f"Warning: 'fiver.py' not found in {script_dir}. Skipping this step.")
+# Steps 5 and 6: Run fiver.py and cleaner.py on the csv file twice
+def run_python_script(script, argument):
+    script_path = os.path.join(script_dir, script)  # Use script_dir to build the full path
+    subprocess.run([sys.executable, script_path, argument], check=True)  # Use sys.executable
 
-    print("Operation completed successfully.")
+# Ensure the CSV file exists before running the scripts
+if os.path.isfile(csv_file):
+    run_python_script('fiver.py', directory_path)  # Run fiver.py with directory_path argument
+    run_python_script('cleaner.py', csv_file)      # Run cleaner.py with csv_file argument
+    run_python_script('fiver.py', directory_path)  # Repeat as needed
+    run_python_script('cleaner.py', csv_file)
+    run_python_script('fiver.py', directory_path)
+    run_python_script('cleaner.py', csv_file)
+    run_python_script('fiver.py', directory_path)
+    run_python_script('cleaner.py', csv_file)
+else:
+    print(f"Error: CSV file '{csv_file}' does not exist.")
 
-if __name__ == "__main__":
-    main()
+# Perform cleanup
+cleanup(directory_path, tsv_file)
+
+print("Operation completed.")

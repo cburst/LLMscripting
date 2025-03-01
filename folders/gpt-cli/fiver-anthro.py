@@ -6,6 +6,7 @@ import subprocess
 import sys
 from datetime import datetime
 from colorama import init, Fore, Style
+import time
 
 # Initialize colorama
 init(autoreset=True)
@@ -100,7 +101,7 @@ def process_files(working_directory, csv_file):
                 continue
 
             # Running a subprocess to process the file content
-            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'gpt-4o']
+            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'claude-3-sonnet-20240229']
             output = subprocess.run(command, capture_output=True, text=True).stdout
             output_escaped = output.replace('"', '""')
             
@@ -108,6 +109,7 @@ def process_files(working_directory, csv_file):
             print(Fore.BLUE + f"Command completed for {i}.")  # Log command completion
             timestamp_output = datetime.now().strftime('%m-%d %H:%M:%S')
             print(Fore.CYAN + f"[{timestamp_output}] " + Style.BRIGHT + Fore.GREEN + f"(output size: {len(output)} characters)")  # Log output size
+            time.sleep(45)
             print(Style.RESET_ALL, end="")  # Reset the color back to normal after the message
 
             # Writing results to CSV
@@ -117,7 +119,7 @@ def process_files(working_directory, csv_file):
                 print(Fore.BLUE + f"Logged output to CSV for {i}")  # Log successful write to CSV
 
     # Log the end of processing
-    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using OPENAI LLM")
+    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using ANTHO LLM")
 
 if __name__ == "__main__":
     main()

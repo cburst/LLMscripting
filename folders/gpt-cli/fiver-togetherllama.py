@@ -100,7 +100,7 @@ def process_files(working_directory, csv_file):
                 continue
 
             # Running a subprocess to process the file content
-            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'gpt-4o']
+            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'oai-compat:meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo']
             output = subprocess.run(command, capture_output=True, text=True).stdout
             output_escaped = output.replace('"', '""')
             
@@ -117,7 +117,7 @@ def process_files(working_directory, csv_file):
                 print(Fore.BLUE + f"Logged output to CSV for {i}")  # Log successful write to CSV
 
     # Log the end of processing
-    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using OPENAI LLM")
+    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using TOGETHER LLM")
 
 if __name__ == "__main__":
     main()

@@ -66,6 +66,7 @@ def main():
         # Optional: Add a delay to avoid rapid, continuous execution
         time.sleep(5)
 
+
 def count_occurrences(filename, csv_file):
     count = 0
     with open(csv_file, mode='r', newline='', encoding='utf-8') as file:
@@ -100,7 +101,7 @@ def process_files(working_directory, csv_file):
                 continue
 
             # Running a subprocess to process the file content
-            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'gpt-4o']
+            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'gemini-1.5-pro']
             output = subprocess.run(command, capture_output=True, text=True).stdout
             output_escaped = output.replace('"', '""')
             
@@ -117,7 +118,7 @@ def process_files(working_directory, csv_file):
                 print(Fore.BLUE + f"Logged output to CSV for {i}")  # Log successful write to CSV
 
     # Log the end of processing
-    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using OPENAI LLM")
+    print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using GOOGLE LLM")
 
 if __name__ == "__main__":
     main()

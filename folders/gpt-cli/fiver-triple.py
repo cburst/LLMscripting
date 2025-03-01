@@ -6,9 +6,17 @@ import subprocess
 import sys
 from datetime import datetime
 from colorama import init, Fore, Style
+import pexpect
+import re
 
 # Initialize colorama
 init(autoreset=True)
+
+# Function to remove control characters (ANSI escape sequences) using the provided regular expression
+def remove_control_characters(text):
+    # Regular expression to match ANSI escape sequences
+    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
+    return ansi_escape.sub('', text)
 
 def main():
     # Check if the directory argument is provided
@@ -99,25 +107,66 @@ def process_files(working_directory, csv_file):
                 print(Fore.RED + f"Error decoding file: {i_path}")  # Log decoding error
                 continue
 
-            # Running a subprocess to process the file content
-            command = [sys.executable, 'gpt.py', '-p', content, '--model', 'gpt-4o']
-            output = subprocess.run(command, capture_output=True, text=True).stdout
-            output_escaped = output.replace('"', '""')
-            
-            # Log the completion of the subprocess
-            print(Fore.BLUE + f"Command completed for {i}.")  # Log command completion
-            timestamp_output = datetime.now().strftime('%m-%d %H:%M:%S')
-            print(Fore.CYAN + f"[{timestamp_output}] " + Style.BRIGHT + Fore.GREEN + f"(output size: {len(output)} characters)")  # Log output size
-            print(Style.RESET_ALL, end="")  # Reset the color back to normal after the message
+            # Start the interactive session
+            child = start_gpt_session()
+
+            # Process the content with the first prompt
+            first_output = send_prompt_and_capture_output(child, content)
+
+            # Process the "Double check that." prompt
+            second_output = send_prompt_and_capture_output(child, "Next, please categorize those errors according to the following types of errors, even if the number of errors for a certain type is zero: Preposition errors (for these errors the delimiter is '!', for example !0!, !1!, etc), Morphology errors (for these errors the delimiter is '#', for example #0#, #1#, etc), Determiner errors (for these errors the delimiter is '$', for example $0$, $1$, etc), Tense/Aspect errors (for these errors the delimiter is '%', for example %0%, %1%, etc), Agreement errors (for these errors the delimiter is '^', for example ^0^, ^1^, etc), Syntax errors (for these errors the delimiter is '&', for example &0&, &1&, etc), Punctuation errors (for these errors the delimiter is '£', for example £0£, £1£, etc), Spelling errors (for these errors the delimiter is '~', for example ~0~, ~1~, etc), Unidiomatic errors (for these errors the delimiter is '+', for example +0+, +1+, etc), Multiple errors (for these errors the delimiter is '=', for example =0=, =1=, etc), and Miscellaneous errors (for these errors the delimiter is '₩', for example ₩0₩, ₩1₩, etc). Make sure that the sum total number matches the sum of the individual error types, using @ as the delimiter, as discussed earlier. Start your answer with all error numbers in their delimiters (even if the number of errors for a certain error type is 0), each separated by a space on the first line.")
+
+            # Process the third prompt "Are you sure there are no other errors? Please carefully double check."
+            third_output = send_prompt_and_capture_output(child, "Are you sure there are no other errors? Please carefully double check. Start your answer with all updated error numbers in their delimiters (even if the number of errors for a certain error type is 0), each separated by a space on the first line.")
+
+            # End the session after processing all prompts
+            end_gpt_session(child)
 
             # Writing results to CSV
             with open(csv_file, mode='a', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
-                writer.writerow([os.path.basename(i), output_escaped])
+                writer.writerow([os.path.basename(i), first_output, second_output, third_output])
                 print(Fore.BLUE + f"Logged output to CSV for {i}")  # Log successful write to CSV
 
     # Log the end of processing
     print(Fore.CYAN + f"Finished processing all eligible files in {working_directory} using OPENAI LLM")
+
+def start_gpt_session():
+    command = f"{sys.executable} gpt.py --model gpt-4o GrammarHelper"
+    child = pexpect.spawn(command, echo=False)
+    child.timeout = 120  # Set timeout for long responses
+    child.expect(r'>')  # Wait for the initial prompt (">")
+    return child
+
+def send_prompt_and_capture_output(child, prompt):
+    child.sendline(prompt)
+    child.expect(r'Tokens:')
+    response = child.before.decode('utf-8')
+
+    # Post-process the output using the new logic
+    start_index_1 = response.rfind("[1A[2K[32m")
+    start_index_2 = response.rfind("[J[?7h")
+    start_index = max(start_index_1, start_index_2)
+    end_index = response.rfind("[0m[2m")
+    
+    if start_index != -1 and end_index != -1:
+        final_output = response[start_index + len("[1A[2K[32m"):end_index].strip()
+        
+        # Remove specific control sequences
+        final_output = final_output.replace("[0m", "").replace("[32m", "")
+        final_output = final_output.replace("[1;33m", "").replace("[1;32m", "")
+        final_output = final_output.replace("[3;32m1", "").replace("[1;32m", "")
+        
+        # Remove all remaining ANSI control sequences using the new regular expression
+        final_output = remove_control_characters(final_output)
+    else:
+        final_output = remove_control_characters(response.strip())
+
+    return final_output
+
+def end_gpt_session(child):
+    child.sendline('exit')
+    child.close()
 
 if __name__ == "__main__":
     main()
