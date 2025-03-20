@@ -201,24 +201,27 @@ def process_text_file(input_file, base_prompts, new_delimiter_instruction, itera
 def move_non_txt_files_into_subfolder(input_directory, subfolder_name, original_txt_files):
     """
     Move every file in `input_directory` except the original TXT files
-    into a subdirectory named `subfolder_name`.
+    into a subdirectory named `subfolder_name`. If a file with the same name exists in
+    the destination, it will be overwritten.
     """
     subfolder_path = os.path.join(input_directory, subfolder_name)
     os.makedirs(subfolder_path, exist_ok=True)
 
     for item in os.listdir(input_directory):
         item_full_path = os.path.join(input_directory, item)
-        # Skip directories if you don't want to move entire subfolders.
+        # Skip directories (except the destination folder) or any subfolders you don't want to move.
         if os.path.isdir(item_full_path) and item != subfolder_name:
-            # If you want to move subdirectories too, uncomment:
-            # shutil.move(item_full_path, subfolder_path)
             continue
-        # Skip the original TXT files
+        # Skip the original TXT files.
         if item_full_path in original_txt_files:
             continue
-        # Move everything else
+        # Move every other file.
         if os.path.isfile(item_full_path):
-            shutil.move(item_full_path, subfolder_path)
+            destination = os.path.join(subfolder_path, os.path.basename(item_full_path))
+            # Overwrite the file if it already exists.
+            if os.path.exists(destination):
+                os.remove(destination)
+            shutil.move(item_full_path, destination)
 
 # -------------------------------
 # Main 5-iteration loop
