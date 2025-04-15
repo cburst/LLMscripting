@@ -10,7 +10,7 @@ def main():
         print("Usage: python simplified_script.py <directory_name>")
         sys.exit(1)
     
-    directory_name = sys.argv[1]
+    directory_name = sys.argv[1].strip()  # <-- strip trailing line endings or whitespace
 
     # Directory of this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
