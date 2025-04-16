@@ -7,14 +7,112 @@ import os
 import re
 import shutil
 
+# -------------------------------
+# Helper: Safe move with retries.
+# -------------------------------
+def safe_move(src, dst, retries=10, delay=0.5):
+    """Try to move src to dst, retrying if a PermissionError occurs."""
+    for attempt in range(retries):
+        try:
+            shutil.move(src, dst)
+            print(f"Moved file on attempt {attempt + 1}: {src} -> {dst}")
+            return
+        except PermissionError as e:
+            print(f"Attempt {attempt+1}: PermissionError encountered moving {src}. Retrying in {delay} seconds...")
+            time.sleep(delay)
+    # If still failing after retries, raise the exception.
+    raise PermissionError(f"Unable to move {src} to {dst} after {retries} retries")
+
+# -------------------------------
+# Platform-specific GPT process spawning
+# -------------------------------
+if os.name == "nt":
+    try:
+        import winpty
+    except ImportError:
+        print("Error: winpty is not installed. Please install it with: pip install winpty")
+        sys.exit(1)
+
+    class ProcessWrapper:
+        """
+        A minimal wrapper to mimic the stdin/stdout interface used in our script.
+        This wraps the winpty.PTY object.
+        """
+        def __init__(self, pty):
+            self.pty = pty
+
+        @property
+        def stdin(self):
+            return self
+
+        @property
+        def stdout(self):
+            return self
+
+        def write(self, data):
+            # Write data to the PTY.
+            self.pty.write(data)
+
+        def flush(self):
+            # No flush needed for winpty.
+            pass
+
+        def readline(self):
+            # Read characters until a newline is encountered.
+            line = ""
+            while True:
+                ch = self.pty.read(1)
+                if not ch:
+                    break
+                line += ch
+                if ch == "\n":
+                    break
+            return line
+
+        def kill(self):
+            # Attempt to kill/close the PTY, if available.
+            try:
+                self.pty.kill()  # If a kill() method exists
+            except AttributeError:
+                pass
+
+        def communicate(self):
+            # In our case, we simply pause a moment to let the process wrap up.
+            time.sleep(1)
+
+    def spawn_gpt():
+        """
+        Spawn the GPT process using winpty on Windows.
+        Returns a ProcessWrapper that mimics subprocess.Popen.
+        """
+        pty_instance = winpty.PTY(cols=80, rows=24)
+        # Use a full command string. Adjust "gpt.exe" if needed.
+        pty_instance.spawn("gpt.exe --model gpt-4o GrammarHelper")
+        return ProcessWrapper(pty_instance)
+else:
+    def spawn_gpt():
+        """
+        Spawn the GPT process using subprocess.Popen on non-Windows systems.
+        """
+        return subprocess.Popen(
+            ["gpt", "--model", "gpt-4o", "GrammarHelper"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+
+# -------------------------------
+# End platform-specific section
+# -------------------------------
+
 def get_ordinal_suffix(n):
     """
     Return the ordinal suffix for an integer n: '1st', '2nd', '3rd', etc.
     """
-    # Special cases
     if 11 <= (n % 100) <= 13:
         return f"{n}th"
-    # General cases
     last_digit = n % 10
     if last_digit == 1:
         return f"{n}st"
@@ -67,7 +165,7 @@ print(f"Number of text files found in {input_directory}: {num_text_files}")
 def count_token_usage(log_file):
     """Count occurrences of 'Token usage' in the log file."""
     if os.path.exists(log_file):
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
             return len(re.findall(r"Token usage", f.read()))
     return 0
 
@@ -87,36 +185,35 @@ def wait_for_responses(expected_count, timeout=120):
 def extract_responses_and_save(filename, iteration_successful_csvs):
     """
     Extract responses from gptcli.log and save them to filename.csv 
-    with preserved line breaks. 
+    with preserved line breaks.
     """
     if not os.path.exists(log_file_path):
         print(f"Error: Log file for {filename} not found.")
         return False
 
-    with open(log_file_path, "r", encoding="utf-8") as log_file:
+    with open(log_file_path, "r", encoding="utf-8", errors="replace") as log_file:
         log_data = log_file.read()
 
-        # Extract responses using assistant messages
+        # Extract responses using assistant messages.
         matches = re.findall(
             r"gptcli-session - INFO - assistant:.*?<<start>>(.*?)<<end>>",
             log_data, 
             re.DOTALL
         )
 
-        # Ensure correct response count
         if len(matches) < num_prompts:
             print(f"Error: Missing responses for {filename}. Expected {num_prompts}, but got {len(matches)}.")
             return False
 
-        # Preserve line breaks inside responses
+        # Preserve line breaks inside responses.
         responses = [resp.strip() for resp in matches]
 
     csv_file = os.path.join(input_directory, f"{filename}.csv")
     header = ["filename"] + [f"prompt{str(i+1).zfill(2)}" for i in range(num_prompts)]
 
     with open(csv_file, mode="w", newline="", encoding="utf-8") as f_csv:
-        writer = csv.writer(f_csv, quoting=csv.QUOTE_ALL)  # quote all fields
-        writer.writerow(header)  # Write header
+        writer = csv.writer(f_csv, quoting=csv.QUOTE_ALL)
+        writer.writerow(header)  # Write header.
         writer.writerow([filename] + responses)
 
     print(f"CSV file saved: {csv_file}")
@@ -125,70 +222,59 @@ def extract_responses_and_save(filename, iteration_successful_csvs):
 
 def process_text_file(input_file, base_prompts, new_delimiter_instruction, iteration_successful_csvs):
     """
-    Runs a GPT session for a single text file and handles up to 10 retries 
-    if there's a timeout waiting for responses. 
+    Runs a GPT session for a single text file and handles up to 10 retries
+    if there's a timeout waiting for responses.
     Returns True if processing eventually succeeds, otherwise False.
     """
     filename = os.path.splitext(os.path.basename(input_file))[0]
     failure_counter = 0
 
     while failure_counter < 10:
-        # Move old log file instead of deleting it
+        # Move old log file instead of deleting it.
         if os.path.exists(log_file_path):
             error_logfile = os.path.join(
                 input_directory, f"gptcli_{filename}_error{failure_counter + 1}.log"
             )
-            shutil.move(log_file_path, error_logfile)
+            safe_move(log_file_path, error_logfile)
             print(f"Saved failed attempt log: {error_logfile}")
 
         with open(input_file, "r", encoding="utf-8") as f_in:
             file_text = f_in.read().strip()
 
-        # Start a new GPT process for this file
-        process = subprocess.Popen(
-            ["gpt", "--model", "gpt-4o", "GrammarHelper"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1
-        )
+        # Start a new GPT process for this file using our spawn_gpt() helper.
+        process = spawn_gpt()
 
-        # Read the initial prompt from GPT
+        # Read the initial prompt from GPT (for Windows, our wrapper provides readline()).
         process.stdout.readline()
 
-        # Send each base_prompt
+        # Send each base prompt.
         for i, base_prompt in enumerate(base_prompts):
             if i == 0:
                 full_prompt = f"{new_delimiter_instruction} {base_prompt} {file_text}"
             else:
                 full_prompt = f"{new_delimiter_instruction} {base_prompt}"
 
-            # Remove any quotation marks from the prompt.
             full_prompt = full_prompt.replace('"', '')
-
-            # Send the prompt.
             process.stdin.write(full_prompt + "\n")
             process.stdin.flush()
 
-            # Wait for the response before sending the next prompt
+            # Wait for the response before sending the next prompt.
             success = wait_for_responses(i + 1)
             if not success:
                 print(f"Error: Timeout waiting for response {i + 1} for {filename}. Retrying...")
                 failure_counter += 1
                 process.kill()
-                break  # Restart the GPT process
+                break  # Restart the GPT process.
         else:
-            # If we didn't break out early, we got all prompts
+            # If we didn't break early, we got all prompts.
             process.stdin.write(":q\n")
             process.stdin.flush()
             process.communicate()
 
-            # Extract responses and save CSV
+            # Extract responses and save CSV.
             if extract_responses_and_save(filename, iteration_successful_csvs):
-                # Rename log file to preserve it
                 new_logfile = os.path.join(input_directory, f"gptcli_{filename}.txt")
-                shutil.move(log_file_path, new_logfile)
+                safe_move(log_file_path, new_logfile)
                 print(f"Renamed log file: {new_logfile}")
                 return True  # success
             else:
@@ -201,24 +287,19 @@ def process_text_file(input_file, base_prompts, new_delimiter_instruction, itera
 def move_non_txt_files_into_subfolder(input_directory, subfolder_name, original_txt_files):
     """
     Move every file in `input_directory` except the original TXT files
-    into a subdirectory named `subfolder_name`. If a file with the same name exists in
-    the destination, it will be overwritten.
+    into a subdirectory named `subfolder_name`.
     """
     subfolder_path = os.path.join(input_directory, subfolder_name)
     os.makedirs(subfolder_path, exist_ok=True)
 
     for item in os.listdir(input_directory):
         item_full_path = os.path.join(input_directory, item)
-        # Skip directories (except the destination folder) or any subfolders you don't want to move.
         if os.path.isdir(item_full_path) and item != subfolder_name:
             continue
-        # Skip the original TXT files.
         if item_full_path in original_txt_files:
             continue
-        # Move every other file.
         if os.path.isfile(item_full_path):
             destination = os.path.join(subfolder_path, os.path.basename(item_full_path))
-            # Overwrite the file if it already exists.
             if os.path.exists(destination):
                 os.remove(destination)
             shutil.move(item_full_path, destination)
@@ -228,7 +309,7 @@ def move_non_txt_files_into_subfolder(input_directory, subfolder_name, original_
 # -------------------------------
 # Store the full paths to the original .txt files so we don't move them:
 original_txt_files = [
-    os.path.join(input_directory, os.path.basename(tf)) 
+    os.path.join(input_directory, os.path.basename(tf))
     for tf in text_files
 ]
 
@@ -240,14 +321,14 @@ combined_csv_path = os.path.join(
 for iteration in range(1, 6):
     iteration_suffix = get_ordinal_suffix(iteration)  # e.g. "1st", "2nd", etc.
     print("=" * 60)
-    print(f"Starting {iteration_suffix} iteration...")  # <--- changed statement
+    print(f"Starting {iteration_suffix} iteration...")
     print("=" * 60)
 
-    # Track CSV files created this iteration
+    # Track CSV files created this iteration.
     iteration_successful_csvs = []
     iteration_success = True
 
-    # Process each text file
+    # Process each text file.
     for input_file in text_files:
         print(f"Processing: {input_file}")
         result = process_text_file(
@@ -257,17 +338,13 @@ for iteration in range(1, 6):
             iteration_successful_csvs
         )
         if not result:
-            # If we fail for even one file, treat the entire iteration as failure
             iteration_success = False
-            # If you want to stop processing further files, uncomment below:
+            # Optionally, break out of the loop if desired.
             # break
 
-    # If this iteration generated any CSV files, append them to the 
-    # combined CSV (only write a header if the combined CSV doesn't exist yet).
+    # If this iteration generated any CSV files, append them to the combined CSV.
     if iteration_successful_csvs:
-        # Check if the combined CSV already exists
         file_already_exists = os.path.exists(combined_csv_path)
-
         mode = "a" if file_already_exists else "w"
         with open(combined_csv_path, mode=mode, newline="", encoding="utf-8") as combined_csv:
             writer = csv.writer(combined_csv)
@@ -275,18 +352,14 @@ for iteration in range(1, 6):
                 with open(csv_file, mode="r", encoding="utf-8") as f_csv:
                     reader = csv.reader(f_csv)
                     rows = list(reader)
-
-                    # If the combined CSV didn't exist previously and this is 
-                    # the first iteration CSV, we include the header.
                     if (not file_already_exists) and i == 0:
-                        writer.writerows(rows)  # includes header
+                        writer.writerows(rows)  # Write header.
                     else:
-                        # If we're appending, skip the header row for each CSV.
-                        writer.writerows(rows[1:])  
+                        writer.writerows(rows[1:])  # Skip header for appended files.
 
         print(f"[Iteration {iteration_suffix}] Appended to combined CSV: {combined_csv_path}")
 
-    # Decide the subfolder name
+    # Decide the subfolder name.
     if iteration_success:
         subfolder_name = f"{iteration_suffix}-iteration"
     else:
