@@ -2,3 +2,4 @@ gpt-command-line
 google-generativeai
 pywinpty
 ptyprocess
+colorama
