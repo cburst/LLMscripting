@@ -1,0 +1,3 @@
+openai
+gpt-command-line
+google-generativeai
