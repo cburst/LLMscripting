@@ -15,7 +15,7 @@ def safe_move(src, dst, retries=10, delay=0.5):
     for attempt in range(retries):
         try:
             shutil.move(src, dst)
-            print(f"Moved file on attempt {attempt + 1}: {src} -> {dst}")
+            # print(f"Moved file on attempt {attempt + 1}: {src} -> {dst}")
             return
         except PermissionError as e:
             print(f"Attempt {attempt+1}: PermissionError encountered moving {src}. Retrying in {delay} seconds...")
@@ -258,6 +258,10 @@ def process_text_file(input_file, base_prompts, new_delimiter_instruction, itera
             process.stdin.write(full_prompt + "\n")
             process.stdin.flush()
 
+            # ← Add these three lines:
+            timestamp = time.strftime("%H:%M:%S", time.localtime())
+            print(f"Prompt {str(i+1).zfill(2)} sent at {timestamp}")
+            
             # Wait for the response before sending the next prompt.
             success = wait_for_responses(i + 1)
             if not success:
@@ -275,7 +279,7 @@ def process_text_file(input_file, base_prompts, new_delimiter_instruction, itera
             if extract_responses_and_save(filename, iteration_successful_csvs):
                 new_logfile = os.path.join(input_directory, f"gptcli_{filename}.txt")
                 safe_move(log_file_path, new_logfile)
-                print(f"Renamed log file: {new_logfile}")
+                # print(f"Renamed log file: {new_logfile}")
                 return True  # success
             else:
                 print(f"Error processing {filename}, retrying...")
