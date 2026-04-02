@@ -2,5 +2,6 @@ gpt-command-line
 google-generativeai
 openai
 pywinpty==2.0.15 ; platform_system == "Windows"
+ttkbootstrap
 ptyprocess
 colorama
