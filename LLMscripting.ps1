@@ -114,6 +114,53 @@ try {
     # Ensure GPT CLI exists in SAME environment
     & $pythonCmd -m pip install gpt-command-line
 
+    # ------------------------------------------------------------
+    # ADD USER PYTHON SCRIPTS TO PATH
+    # ------------------------------------------------------------
+    Write-Output "Adding Python Scripts directory to PATH..."
+
+    try {
+
+        # detect Python version dynamically (e.g., Python311)
+        $pythonVersion = & $pythonCmd -c "import sys; print(f'Python{sys.version_info.major}{sys.version_info.minor}')"
+        $scriptPath = "$env:APPDATA\Python\$pythonVersion\Scripts"
+
+        if (Test-Path $scriptPath) {
+
+            $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+
+            if ($userPath -notlike "*$scriptPath*") {
+
+                [Environment]::SetEnvironmentVariable(
+                    "PATH",
+                    "$userPath;$scriptPath",
+                    "User"
+                )
+
+                Write-Output "Added to PATH: $scriptPath"
+
+            } else {
+
+                Write-Output "Scripts path already in PATH."
+
+            }
+
+        } else {
+
+            Write-Output "⚠️ Scripts directory not found: $scriptPath"
+
+        }
+
+        # refresh PATH for current session
+        $env:PATH = [Environment]::GetEnvironmentVariable("PATH", "User")
+
+    } catch {
+
+        Write-Output "⚠️ Failed to update PATH: $($_.Exception.Message)"
+
+    }
+
+
     # ============================================================
     # 4. CREATE DESKTOP SHORTCUT
     # ============================================================
