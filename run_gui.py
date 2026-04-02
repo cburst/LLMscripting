@@ -91,12 +91,22 @@ def safe_ui(func, *args, **kwargs):
 # -----------------------------
 def ensure_api_key():
 
+    import os
+    import subprocess
+    import platform
+
+    # -----------------------------
+    # 1. Already set?
+    # -----------------------------
     key = os.getenv("OPENAI_API_KEY")
     if key:
         return True
 
     key_path = os.path.expanduser("~/.gptmulti_api_key")
 
+    # -----------------------------
+    # 2. Try loading from file
+    # -----------------------------
     if os.path.exists(key_path):
         try:
             with open(key_path) as f:
@@ -107,6 +117,9 @@ def ensure_api_key():
         except:
             pass
 
+    # -----------------------------
+    # 3. Prompt user (your existing dialog)
+    # -----------------------------
     dialog = tb.Toplevel(app)
     dialog.title("Setup API Key")
     dialog.geometry("500x300")
@@ -117,8 +130,8 @@ def ensure_api_key():
     tb.Label(
         frame,
         text=(
-            "An OpenAI API key is required to run the grammar pipeline.\n\n"
-            "Create an API key here:"
+            "An OpenAI API key is required.\n\n"
+            "Create one here:"
         ),
         wraplength=440
     ).pack(anchor="w", pady=(0, 5))
@@ -150,6 +163,12 @@ def ensure_api_key():
 
     key = key.strip().strip('"').strip("'")
 
+    if not key:
+        return False
+
+    # -----------------------------
+    # 4. Save locally (fallback)
+    # -----------------------------
     try:
         with open(key_path, "w") as f:
             f.write(key)
@@ -157,7 +176,48 @@ def ensure_api_key():
     except:
         pass
 
+    # -----------------------------
+    # 5. Set for current process
+    # -----------------------------
     os.environ["OPENAI_API_KEY"] = key
+
+    system = platform.system()
+
+    # -----------------------------
+    # 6. Persist globally
+    # -----------------------------
+    try:
+        if system == "Windows":
+            # user-level env var
+            subprocess.run(
+                ["setx", "OPENAI_API_KEY", key],
+                shell=True
+            )
+
+        elif system == "Darwin":
+            # macOS (zsh/bash profile)
+            shell = os.environ.get("SHELL", "")
+
+            if "zsh" in shell:
+                rc_file = os.path.expanduser("~/.zshrc")
+            else:
+                rc_file = os.path.expanduser("~/.bashrc")
+
+            line = f'\nexport OPENAI_API_KEY="{key}"\n'
+
+            # avoid duplicates
+            if os.path.exists(rc_file):
+                with open(rc_file, "r") as f:
+                    if "OPENAI_API_KEY" not in f.read():
+                        with open(rc_file, "a") as f:
+                            f.write(line)
+            else:
+                with open(rc_file, "w") as f:
+                    f.write(line)
+
+    except Exception as e:
+        print("⚠️ Failed to persist API key:", e)
+
     return True
 
 # -----------------------------
