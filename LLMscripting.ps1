@@ -160,6 +160,40 @@ try {
 
     }
 
+    # ============================================================
+    # 3.5 COPY GPT CONFIG (CRITICAL)
+    # ============================================================
+    Write-Output "Setting up gpt-cli config..."
+
+    try {
+
+        $configDir = "$env:USERPROFILE\.config\gpt-cli"
+        $configFile = "$configDir\gpt.yml"
+        $sourceConfig = "$TARGET_DIR\folders\gpt-cli\gpt.yml"
+
+        # Create config directory if it doesn't exist
+        if (-not (Test-Path $configDir)) {
+            New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+            Write-Output "Created config directory: $configDir"
+        }
+
+        # Copy gpt.yml (overwrite to ensure consistency)
+        if (Test-Path $sourceConfig) {
+
+            Copy-Item $sourceConfig $configFile -Force
+            Write-Output "Copied gpt.yml → $configFile"
+
+        } else {
+
+            Write-Output "⚠️ gpt.yml not found at: $sourceConfig"
+
+        }
+
+    } catch {
+
+        Write-Output "⚠️ Failed to set up gpt-cli config: $($_.Exception.Message)"
+
+    }
 
     # ============================================================
     # 4. CREATE DESKTOP SHORTCUT
