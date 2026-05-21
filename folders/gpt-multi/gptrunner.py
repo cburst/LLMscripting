@@ -9,8 +9,10 @@ import unicodedata
 
 
 def clean_text(text):
+    # Normalize unicode
     text = unicodedata.normalize("NFKC", text)
 
+    # Convert quote/apostrophe variants to plain apostrophe
     quote_variants = [
         "‘", "’", "‚", "‛",
         "“", "”", "„", "‟",
@@ -20,7 +22,16 @@ def clean_text(text):
     for char in quote_variants:
         text = text.replace(char, "'")
 
+    # Remove all line breaks and tabs
+    text = text.replace("\r", " ")
+    text = text.replace("\n", " ")
+    text = text.replace("\t", " ")
+
+    # Keep only:
+    # letters, numbers, spaces, and ! ? . , - '
     text = re.sub(r"[^A-Za-z0-9 !?\.,\-']", "", text)
+
+    # Collapse repeated whitespace
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
@@ -50,22 +61,35 @@ def main():
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    # 4-6. Read TSV safely and create one text file per row after header
-    with open(tsv_file, "r", newline="", encoding="utf-8") as f:
-        reader = csv.reader(f, delimiter="\t")
+    # 4-6. Read TSV and create one text file per row
+    with open(tsv_file, "r", encoding="utf-8") as f:
 
-        next(reader, None)  # skip header
+        # Skip header
+        next(f)
 
-        for row in reader:
-            if len(row) > 1 and row[1].strip():
-                filename = row[0].strip()
-                text_content = clean_text(row[1])
+        for line in f:
 
-                if filename:
-                    txt_file_path = os.path.join(directory_path, f"{filename}.txt")
+            line = line.rstrip("\r\n")
 
-                    with open(txt_file_path, "w", encoding="utf-8") as txt_file:
-                        txt_file.write(text_content)
+            if "\t" not in line:
+                continue
+
+            filename, text_content = line.split("\t", 1)
+
+            filename = filename.strip()
+
+            if not filename:
+                continue
+
+            text_content = clean_text(text_content)
+
+            txt_file_path = os.path.join(
+                directory_path,
+                f"{filename}.txt"
+            )
+
+            with open(txt_file_path, "w", encoding="utf-8") as txt_file:
+                txt_file.write(text_content)
 
     # 7. Delete the TSV file now that splitting is done
     if os.path.isfile(tsv_file):
