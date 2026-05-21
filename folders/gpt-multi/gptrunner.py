@@ -9,50 +9,58 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python simplified_script.py <directory_name>")
         sys.exit(1)
-    
-    directory_name = sys.argv[1].strip()  # <-- strip trailing line endings or whitespace
+
+    directory_name = sys.argv[1].strip()
 
     # Directory of this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # 2. Check for a TSV file named [directory_name]raw.tsv in the same directory
+    # 2. Check for a TSV file named [directory_name]raw.tsv
     tsv_file = os.path.join(script_dir, f"{directory_name}raw.tsv")
+
     if not os.path.isfile(tsv_file):
         print(f"Error: TSV file '{tsv_file}' not found.")
         sys.exit(1)
 
-    # 3. Filter out the header and lines with an empty second column
-    with open(tsv_file, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    # 3. Read TSV safely using csv module
+    filtered_rows = []
 
-    # Assume the first line is a header; skip it
-    data_lines = lines[1:]
-    filtered_lines = []
-    for line in data_lines:
-        columns = line.strip().split('\t')
-        # Check if there's at least 2 columns and the second column is not empty
-        if len(columns) > 1 and columns[1].strip():
-            filtered_lines.append(line)
+    with open(tsv_file, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.reader(f, delimiter='\t')
 
-    # 4. Overwrite the old TSV file with the filtered content
-    with open(tsv_file, 'w', encoding='utf-8') as f:
-        f.writelines(filtered_lines)
+        # Skip header
+        next(reader, None)
 
-    # 5. Create [directory_name] if it doesn’t exist
+        for row in reader:
+            # Require at least 2 columns and non-empty second column
+            if len(row) > 1 and row[1].strip():
+                filtered_rows.append(row)
+
+    # 4. Overwrite TSV with filtered content
+    with open(tsv_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
+
+        for row in filtered_rows:
+            writer.writerow(row)
+
+    # 5. Create [directory_name] directory if it doesn't exist
     directory_path = os.path.join(script_dir, directory_name)
+
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    # 6. Split the TSV file to create text files in [directory_name]
-    with open(tsv_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            columns = line.strip().split('\t')
-            if len(columns) > 1:
-                filename = columns[0].strip()
-                text_content = columns[1]
-                if filename:  # Avoid creating ".txt" if the first column is empty
+    # 6. Split TSV into text files safely
+    with open(tsv_file, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.reader(f, delimiter='\t')
+
+        for row in reader:
+            if len(row) > 1:
+                filename = row[0].strip()
+                text_content = row[1]
+
+                if filename:
                     txt_file_path = os.path.join(directory_path, f"{filename}.txt")
-                    # Overwrite for simplicity
+
                     with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
                         txt_file.write(text_content)
 
