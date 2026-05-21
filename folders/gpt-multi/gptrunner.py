@@ -4,6 +4,39 @@ import subprocess
 from collections import Counter
 import csv
 
+import re
+import unicodedata
+
+
+def clean_text(text):
+    # Normalize unicode variants
+    text = unicodedata.normalize("NFKC", text)
+
+    # Convert apostrophe / quotation variants to simple apostrophe
+    apostrophe_variants = [
+        "‘", "’", "‚", "‛",
+        "“", "”", "„", "‟",
+        "`", "´", "′", "″"
+    ]
+
+    for char in apostrophe_variants:
+        text = text.replace(char, "'")
+
+    # Remove all line breaks / tabs
+    text = text.replace("\r", " ")
+    text = text.replace("\n", " ")
+    text = text.replace("\t", " ")
+
+    # Keep only:
+    # A-Z a-z 0-9 space and (! ? . , - ')
+    text = re.sub(r"[^A-Za-z0-9 !?\.,\-']", "", text)
+
+    # Collapse repeated whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
 def main():
     # 1. Receive directory name as argument
     if len(sys.argv) < 2:
@@ -15,14 +48,14 @@ def main():
     # Directory of this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # 2. Check for a TSV file named [directory_name]raw.tsv
+    # 2. Check for TSV file
     tsv_file = os.path.join(script_dir, f"{directory_name}raw.tsv")
 
     if not os.path.isfile(tsv_file):
         print(f"Error: TSV file '{tsv_file}' not found.")
         sys.exit(1)
 
-    # 3. Read TSV safely using csv module
+    # 3. Read and filter TSV safely
     filtered_rows = []
 
     with open(tsv_file, 'r', newline='', encoding='utf-8') as f:
@@ -32,34 +65,42 @@ def main():
         next(reader, None)
 
         for row in reader:
-            # Require at least 2 columns and non-empty second column
             if len(row) > 1 and row[1].strip():
-                filtered_rows.append(row)
 
-    # 4. Overwrite TSV with filtered content
+                filename = row[0].strip()
+                text_content = clean_text(row[1])
+
+                filtered_rows.append([filename, text_content])
+
+    # 4. Overwrite TSV with cleaned content
     with open(tsv_file, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
 
         for row in filtered_rows:
             writer.writerow(row)
 
-    # 5. Create [directory_name] directory if it doesn't exist
+    # 5. Create output directory
     directory_path = os.path.join(script_dir, directory_name)
 
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    # 6. Split TSV into text files safely
+    # 6. Split TSV into text files
     with open(tsv_file, 'r', newline='', encoding='utf-8') as f:
         reader = csv.reader(f, delimiter='\t')
 
         for row in reader:
             if len(row) > 1:
+
                 filename = row[0].strip()
                 text_content = row[1]
 
                 if filename:
-                    txt_file_path = os.path.join(directory_path, f"{filename}.txt")
+
+                    txt_file_path = os.path.join(
+                        directory_path,
+                        f"{filename}.txt"
+                    )
 
                     with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
                         txt_file.write(text_content)
